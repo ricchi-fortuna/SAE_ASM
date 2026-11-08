@@ -1,16 +1,28 @@
+"""
+Airport Management System - Client TCP
+Projet SAE L3 Informatique - CY Cergy Paris Université
+
+Client de communication avec le serveur applicatif Java.
+Protocole AMS-P : TCP avec séparateur ";"
+"""
+
 import socket
 
 adresseIP = "127.0.0.1"
 port = 50000
-#Fonction qui fait la fermeture de la connexion entre le serveur et client
+
+
+# Fonction qui ferme la connexion entre le client et le serveur
 def fermer_connexion():
     socket_client.sendall("FERMETURE\n".encode("utf-8"))
-    reponse = socket_client.recv(1024).decode("utf-8").strip()
+    reponse = recevoir_message()
     print(reponse)
     socket_client.close()
     exit()
 
-# on utilise cela car un message ne fait pas toujours 1024 octet
+
+# Réception d'un message complet terminé par "\n"
+# Un recv(1024) ne garantit pas la réception du message entier
 def recevoir_message():
     bmessage = b""
 
@@ -24,94 +36,113 @@ def recevoir_message():
 
     return bmessage.decode("utf-8").strip()
 
-# utiliser une adresseIpV4 et le tcp
+
+# Création de la socket TCP en IPv4
 socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 socket_client.connect((adresseIP, port))
 
-#identification de la borne
+
+# Identification de la borne auprès du serveur
+# Trame envoyée : ID_BORNE;identifiant
 id_borne = "BORNE01"
-message = id_borne + "\n"
+message = "ID_BORNE;" + id_borne + "\n"
 socket_client.sendall(message.encode("utf-8"))
 
-#gestion de la réponse d'identification :
-reponse = socket_client.recv(1024)
-reponse = reponse.decode("utf-8").strip()
+reponse = recevoir_message()
 
-if reponse == "Acceptée":
+# Vérification de la réponse d'identification
+if reponse == "Acceptee;BORNE_ACCEPTEE":
     print("Borne reconnue")
 else:
     print("Borne non reconnue")
     fermer_connexion()
 
-#Identification de l'individu
-enregistrement_valide = False
-id_resa = input("Entrez votre code de réservation :")
-nom_voy =input("Entrez votre nom :")
-prenom_voy = input("Entrez votre prenom :")
 
-message = id_resa + ";" + nom_voy + ";" + prenom_voy + "\n"
+# Identification du voyageur
+# Trame envoyée : ID_RESA;reference;nom;prenom
+enregistrement_valide = False
+
+id_resa = input("Entrez votre code de réservation : ")
+nom_voy = input("Entrez votre nom : ")
+prenom_voy = input("Entrez votre prenom : ")
+
+message = "ID_RESA;" + id_resa + ";" + nom_voy + ";" + prenom_voy + "\n"
 socket_client.sendall(message.encode("utf-8"))
 
-reponse = socket_client.recv(1024)
-reponse = reponse.decode("utf-8").strip()
+reponse = recevoir_message()
 
-# vérification de la réponse et on répond au client en fonction du cas
-if reponse.startswith("OK;"):
+# Vérification de la réservation
+# Le serveur peut accepter ou refuser selon le billet et le vol
+if reponse.startswith("Acceptee;"):
     enregistrement_valide = True
-    print("Réservation  acceptée:",reponse[3:])
+    print("Réservation acceptée :", reponse[len("Acceptee;"):])
 else:
-    if reponse == "REFUS;BILLET_INTROUVABLE":
+    if reponse == "Refuse;RESA_INTROUVABLE":
         print("Billet introuvable")
-    elif reponse == "REFUS;VOL_ANNULE":
+    elif reponse == "Refuse;VOL_ANNULE":
         print("Votre vol est annulé")
     else:
-        print("Réponse inattendue:",reponse)
+        print("Réponse inattendue :", reponse)
+
     fermer_connexion()
 
-#Vérification des bagages
-choix_bagage = input("Avez vous un bagage en soute :(oui/non)")
+
+# Vérification des bagages en soute
+# Trame envoyée : SOUTE;poids
+choix_bagage = input("Avez-vous un bagage en soute ? (oui/non) : ")
+
 if choix_bagage == "oui":
-    poids_Soute = input("Veuillez renseigner le poid du bagage:")
-    message = "SOUTE;"+poids_Soute + "\n"
+    poids_Soute = input("Veuillez renseigner le poids du bagage : ")
+
+    message = "SOUTE;" + poids_Soute + "\n"
     socket_client.sendall(message.encode("utf-8"))
 
-    reponse = socket_client.recv(1024)
-    reponse = reponse.decode("utf-8").strip()
+    reponse = recevoir_message()
 
-    if reponse.startswith("OK;"):
-        print("Voici votre numéro d'étiquette:", reponse[3:])
-    else :
-        print("Le bagage dépasse le poid limite autorisée, réduisez son poid ou payez le supplément de :",reponse)
+    # Si le bagage est accepté, le serveur renvoie une étiquette
+    if reponse.startswith("Acceptee;"):
+        print("Voici votre numéro d'étiquette :", reponse[len("Acceptee;"):])
+    else:
+        print("Bagage en soute refusé :", reponse)
         fermer_connexion()
 
-choix_bagage = input("Avez vous un bagage en cabine :(oui/non)")
+
+# Vérification du bagage en cabine
+# Trame envoyée : CABINE;longueur;hauteur;profondeur
+choix_bagage = input("Avez-vous un bagage en cabine ? (oui/non) : ")
 
 if choix_bagage == "oui":
-    long=input("Entrer la longueur :")
-    larg=input("Entrer la largeur :")
-    haut =input("Entrer la hauteur :")
-    message = "CABINE;"+long +";" +larg+";"+haut+"\n"
+    long = input("Entrer la longueur : ")
+    larg = input("Entrer la hauteur : ")
+    haut = input("Entrer la profondeur : ")
 
+    message = "CABINE;" + long + ";" + larg + ";" + haut + "\n"
     socket_client.sendall(message.encode("utf-8"))
-    reponse = socket_client.recv(1024)
-    reponse = reponse.decode("utf-8").strip()
 
-    if reponse == "OK":
-        print("La valise respecte le gabarit ")
+    reponse = recevoir_message()
 
-    elif reponse == "REFUS;GABARIT_ELEVEE":
+    if reponse == "Acceptee;CABINE_ACCEPTEE":
+        print("La valise respecte le gabarit")
+
+    elif reponse == "Refuse;CABINE_TROP_GRAND":
         print("Le bagage dépasse le gabarit autorisé")
         fermer_connexion()
     else:
         print("Réponse inattendue :", reponse)
         fermer_connexion()
+
+
+# Demande de la carte d'embarquement
+# Le serveur renvoie les informations du vol et du voyageur
 if enregistrement_valide:
-    message = "carte_embarquement\n"
+    message = "CARTE_EMBARQUEMENT\n"
     socket_client.sendall(message.encode("utf-8"))
-    reponse = socket_client.recv(1024)
-    reponse = reponse.decode("utf-8").strip()
+
+    reponse = recevoir_message()
     infos = reponse.split(";")
-    if len(infos) == 6 and infos[0] == "OK":
+
+    # Trame reçue : Acceptee;vol;nom;prenom;siege;porte
+    if len(infos) == 6 and infos[0] == "Acceptee":
         print("===== CARTE D'EMBARQUEMENT =====")
         print("Vol :", infos[1])
         print("Nom :", infos[2])
@@ -121,9 +152,6 @@ if enregistrement_valide:
 
     else:
         print("Impossible de récupérer la carte d'embarquement")
+
+    # Fermeture de la connexion après l'enregistrement
     fermer_connexion()
-
-
-
-
-
