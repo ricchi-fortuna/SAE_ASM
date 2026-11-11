@@ -1,7 +1,7 @@
 /**
  * Copyright Airport Management System - étudiants L3 Informatique CY Paris Université
  * @author RATSIMBASON Fanantenana, RABENANDRASANA Hajatiana & ANDRIAMANANTENASOA Aina Mirija
- * @version 1.1
+ * @version 1.0
  * @since 07/11/2026
  * Serveur applicatif du protocole AMS-P (TCP, séparateur des trames est ";").
  * Version sans base de donnees : les réponses sont simulées
@@ -20,13 +20,11 @@ public class AirportServer {
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Serveur Applicatif (Multi-thread) démarre sur le port " + port + "...");
-
             // Le serveur écoute a l'infini les nouvelles connexions
             while (true) {
                 System.out.println("En attente de connexion d'une nouvelle borne...");
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("=> Nouvelle connexion entrante ! IP : " + clientSocket.getInetAddress());
-
                 // On délègue la gestion de cette borne à un nouveau Thread
                 ClientHandler clientThread = new ClientHandler(clientSocket);
                 clientThread.start();
